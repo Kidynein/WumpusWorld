@@ -3,47 +3,48 @@ from enum import Enum
 from typing import Dict, List, Tuple
 
 class WumpusWorld:
-    def __init__(self, seed=36):
-        self.grid_size = 5
+    def __init__(self, world_size = 8, k = 2, p = 0.2, seed=36):
+        self.grid_size = world_size
         self.agent_pos = (0, 0)
         self.agent_dir = "right"
         self.has_gold = False
         self.has_arrow = True
-        self.wumpus_alive = True
         self.game_over_state = None
         self.seed = seed
         self.score = 0
+        self.K = k
+        self.pit_prob = p
         random.seed(self.seed)
         self.world = self._generate_world()
         self.percepts = self._update_percepts()
 
     def _generate_world(self):
         world = [[{"pit": False, "wumpus": False, "gold": False} for _ in range(self.grid_size)]
-                 for _ in range(self.grid_size)]
+                for _ in range(self.grid_size)]
 
-        # Place Wumpus (exactly one, not at start)
-        while True:
+        # Place K Wumpus (not at (0,0), no duplicates)
+        placed_wumpus = 0
+        while placed_wumpus < self.K:
             wx = random.randint(0, self.grid_size - 1)
             wy = random.randint(0, self.grid_size - 1)
-            if (wx, wy) != (0, 0):
+            if (wx, wy) != (0, 0) and not world[wx][wy]["wumpus"]:
                 world[wx][wy]["wumpus"] = True
-                break
+                placed_wumpus += 1
 
-        # Place Gold (exactly one, not at start or Wumpus)
+        # Place Gold (not with pit or wumpus; may be at (0,0))
         while True:
             gx = random.randint(0, self.grid_size - 1)
             gy = random.randint(0, self.grid_size - 1)
-            if (gx, gy) not in [(0, 0), (wx, wy)]:
+            if not world[gx][gy]["wumpus"] and not world[gx][gy]["pit"]:
                 world[gx][gy]["gold"] = True
                 break
 
-        # Place exactly 3 pits (not at start, Wumpus, or Gold)
-        all_positions = [(i, j) for i in range(self.grid_size) for j in range(self.grid_size)]
-        forbidden = {(0, 0), (wx, wy), (gx, gy)}
-        available = [pos for pos in all_positions if pos not in forbidden]
-        pit_positions = random.sample(available, min(3, len(available)))
-        for (px, py) in pit_positions:
-            world[px][py]["pit"] = True
+        # Place pits with probability p (not at (0,0), not where wumpus or gold is)
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
+                if (i, j) != (0, 0) and not world[i][j]["wumpus"] and not world[i][j]["gold"]:
+                    if random.random() < self.pit_prob:
+                        world[i][j]["pit"] = True
 
         return world
 
@@ -62,7 +63,7 @@ class WumpusWorld:
             nx, ny = x + dx, y + dy
             if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
                 cell = self.world[nx][ny]
-                if cell["wumpus"] and self.wumpus_alive:
+                if cell["wumpus"]:
                     percepts["stench"] = True
                 if cell["pit"]:
                     percepts["breeze"] = True
@@ -125,28 +126,31 @@ class WumpusWorld:
         hit = False
 
         if self.agent_dir == "up":
-            for i in range(x - 1, -1, -1):
+            for i in range(x - 1, self.grid_size):
                 if self.world[i][y]["wumpus"]:
                     hit = True
+                    self.world[i][y]["wumpus"] = False  # Wumpus is killed
                     break
         elif self.agent_dir == "down":
-            for i in range(x + 1, self.grid_size):
+            for i in range(x + 1, -1, -1):
                 if self.world[i][y]["wumpus"]:
+                    self.world[i][y]["wumpus"] = False
                     hit = True
                     break
         elif self.agent_dir == "left":
             for j in range(y - 1, -1, -1):
                 if self.world[x][j]["wumpus"]:
+                    self.world[x][j]["wumpus"] = False
                     hit = True
                     break
         elif self.agent_dir == "right":
             for j in range(y + 1, self.grid_size):
                 if self.world[x][j]["wumpus"]:
+                    self.world[x][j]["wumpus"] = False
                     hit = True
                     break
 
         if hit:
-            self.wumpus_alive = False
             self.percepts["scream"] = True
             return True
 
@@ -181,7 +185,7 @@ class WumpusWorld:
         cell = self.world[x][y]
 
         # Check for death by pit or alive Wumpus
-        if cell["pit"] or (cell["wumpus"] and self.wumpus_alive):
+        if cell["pit"] or (cell["wumpus"]):
             self.game_over_state = "lose"
             return "lose"
 
