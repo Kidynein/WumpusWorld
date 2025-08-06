@@ -4,25 +4,23 @@ from enum import Enum
 class GameMode(Enum):
     AUTO = "Auto"
     STEP = "Step"
-class WumpusWorldUI:
+class GUI:
     def __init__(self, world, agent):
         pygame.init()
         self.world = world
         self.agent = agent
 
         # Grid and UI sizing
-        self.GRID_SIZE = 5
-        self.CELL_SIZE = 100
+        self.GRID_SIZE = world.grid_size
         self.MARGIN = 50
         self.UI_WIDTH = 300
         self.BUTTON_HEIGHT = 40
-        self.WINDOW_WIDTH = (
-            self.GRID_SIZE * self.CELL_SIZE + 2 * self.MARGIN + self.UI_WIDTH
-        )
-        self.WINDOW_HEIGHT = (
-            self.GRID_SIZE * self.CELL_SIZE + 2 * self.MARGIN + 100
-        )
-
+        self.WINDOW_WIDTH = 1000
+        self.WINDOW_HEIGHT = 700
+        available_grid_width = self.WINDOW_WIDTH - self.UI_WIDTH - 2 * self.MARGIN
+        available_grid_height = self.WINDOW_HEIGHT - 2 * self.MARGIN - 100
+        self.CELL_SIZE = min(available_grid_width // self.GRID_SIZE,
+                             available_grid_height // self.GRID_SIZE)
         # Pygame setup
         self.screen = pygame.display.set_mode(
             (self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
@@ -52,18 +50,37 @@ class WumpusWorldUI:
         self.mode = GameMode.STEP
         self.buttons = self._create_buttons()
 
-        # NEW: Load icons; assume files are in working directory
-        self.agent_img = pygame.transform.scale(pygame.image.load("assets/agent.png"), (100, 100))
-        self.wumpus_img = pygame.transform.scale(pygame.image.load("assets/wumpus.png"), (100, 100))
-        self.gold_img = pygame.transform.scale(pygame.image.load("assets/gold.png"), (80, 80))
-        self.pit_img = pygame.transform.scale(pygame.image.load("assets/pit.png"), (100, 100))
-        self.stench_img = pygame.transform.scale(pygame.image.load("assets/stench.png"), (50, 50))
-        self.breeze_img = pygame.transform.scale(pygame.image.load("assets/breeze.png"), (50, 50))
+        # Load hình ảnh và scale theo CELL_SIZE
+        self.agent_img = pygame.transform.scale(pygame.image.load("assets/agent.png"), (self.CELL_SIZE, self.CELL_SIZE))
+        self.wumpus_img = pygame.transform.scale(pygame.image.load("assets/wumpus.png"), (self.CELL_SIZE, self.CELL_SIZE))
+        self.gold_img = pygame.transform.scale(pygame.image.load("assets/gold.png"), (int(self.CELL_SIZE * 0.8), int(self.CELL_SIZE * 0.8)))
+        self.pit_img = pygame.transform.scale(pygame.image.load("assets/pit.png"), (self.CELL_SIZE, self.CELL_SIZE))
         self.block_img = pygame.transform.scale(pygame.image.load("assets/floor.jpg"), (self.CELL_SIZE, self.CELL_SIZE))
+        self.breeze_img = pygame.transform.scale(pygame.image.load("assets/breeze.png"), (int(self.CELL_SIZE * 0.5), int(self.CELL_SIZE * 0.5)))
+        self.stench_img = pygame.transform.scale(pygame.image.load("assets/stench.png"), (int(self.CELL_SIZE * 0.5), int(self.CELL_SIZE * 0.5)))
 
         # NEW: Toggle for showing actual pit/Wumpus icons
         self.show_dangers = False
         self.show_gold = False
+        self.show_config_popup = False
+    def _update(self, new_world, new_agent):
+        """Update the GUI with a new world state."""
+        self.world = new_world
+        self.agent = new_agent
+        self.buttons = self._create_buttons()
+        available_grid_width = self.WINDOW_WIDTH - self.UI_WIDTH - 2 * self.MARGIN
+        available_grid_height = self.WINDOW_HEIGHT - 2 * self.MARGIN - 100
+        self.GRID_SIZE = new_world.grid_size
+        self.CELL_SIZE = min(available_grid_width // self.GRID_SIZE,
+                             available_grid_height // self.GRID_SIZE)
+        # Load hình ảnh và scale theo CELL_SIZE
+        self.agent_img = pygame.transform.scale(pygame.image.load("assets/agent.png"), (self.CELL_SIZE, self.CELL_SIZE))
+        self.wumpus_img = pygame.transform.scale(pygame.image.load("assets/wumpus.png"), (self.CELL_SIZE, self.CELL_SIZE))
+        self.gold_img = pygame.transform.scale(pygame.image.load("assets/gold.png"), (int(self.CELL_SIZE * 0.8), int(self.CELL_SIZE * 0.8)))
+        self.pit_img = pygame.transform.scale(pygame.image.load("assets/pit.png"), (self.CELL_SIZE, self.CELL_SIZE))
+        self.block_img = pygame.transform.scale(pygame.image.load("assets/floor.jpg"), (self.CELL_SIZE, self.CELL_SIZE))
+        self.breeze_img = pygame.transform.scale(pygame.image.load("assets/breeze.png"), (int(self.CELL_SIZE * 0.5), int(self.CELL_SIZE * 0.5)))
+        self.stench_img = pygame.transform.scale(pygame.image.load("assets/stench.png"), (int(self.CELL_SIZE * 0.5), int(self.CELL_SIZE * 0.5)))
     def _flip_y(self, row_index):
         """Chuyển chỉ số hàng thành toạ độ y đảo ngược."""
         return self.MARGIN + (self.GRID_SIZE - 1 - row_index) * self.CELL_SIZE
@@ -76,6 +93,7 @@ class WumpusWorldUI:
             ("Show All", "toggle_all"),
             ("Reset Game", "reset_game"),
             ("New Seed", "new_seed"),
+            ("Config", "config"),
         ]
         buttons = []
         for idx, (label, action) in enumerate(configs):
@@ -122,7 +140,7 @@ class WumpusWorldUI:
                 if self.show_dangers:
                     if cell_data["pit"]:
                         self.screen.blit(self.pit_img, (x, y))
-                    elif cell_data["wumpus"] and self.world.wumpus_alive:
+                    elif cell_data["wumpus"]:
                         self.screen.blit(self.wumpus_img, (x, y))
 
                 if cell_pos == self.world.agent_pos:
@@ -133,7 +151,7 @@ class WumpusWorldUI:
 
                 if cell_data["gold"] and (self.show_gold or cell_pos in self.agent.visited_cells):
                     gx = x + (self.CELL_SIZE - self.gold_img.get_width()) // 2
-                    gy = y + (self.CELL_SIZE - self.gold_img.get_height()) // 2 + 20
+                    gy = y + (self.CELL_SIZE - self.gold_img.get_height()) // 2
                     self.screen.blit(self.gold_img, (gx, gy))
 
                 if cell_pos == self.world.agent_pos or cell_pos in self.agent.visited_cells:
@@ -141,9 +159,6 @@ class WumpusWorldUI:
                         self.screen.blit(self.breeze_img, (x, y))
                     if cell_pos in self.agent.stench_cells:
                         self.screen.blit(self.stench_img, (x, y + 50))
-
-
-
 
     def _draw_agent_direction(self, x: int, y: int):
         """Draw a small triangle indicating agent’s facing direction."""
@@ -288,6 +303,9 @@ class WumpusWorldUI:
                 elif action == "toggle_all":
                     self.show_gold = not self.show_gold
                     self.show_dangers = not self.show_dangers
+                    return None
+                elif action == "config":
+                    self.show_config_popup = not self.show_config_popup
                     return None
                 return action
         return None
