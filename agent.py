@@ -3,7 +3,7 @@ from planning import Planning
 from typing import Tuple, List, Dict
 
 class HybridAgent:
-    def __init__(self, world_size: int = 5):
+    def __init__(self, world_size: int = 8):
         """
         Initialize the HybridAgent, combining LogicInference and Planning modules.
         
