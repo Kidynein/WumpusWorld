@@ -25,6 +25,8 @@ class Planning:
 
         # 2. Plan to go home if has gold
         if world.has_gold:
+            if current_pos == (0, 0):
+                return "climb"
             if not self.current_plan:
                 path_home = self.find_path(current_pos, (0, 0), world, strict_safe=True)
                 if path_home:
@@ -70,16 +72,16 @@ class Planning:
                         self.current_plan = self._path_to_actions(path, current_dir)
                         if self.current_plan:
                             return self.current_plan.pop(0)
-
+        
         # 5. Risky move to warning cell
         if self.logic_inference.warning_cells and not safe_unvisited:
             for target in self.logic_inference.warning_cells:
                 path = self.find_risky_path(current_pos, target, world)
                 if path:
-                    self.logic_inference.knowledge_base.append(f"Taking risky path to: {target}")
                     self.current_plan = self._path_to_actions(path, current_dir)
                     if self.current_plan:
                         return self.current_plan.pop(0)
+
         # 6. Nothing to do
         return "wait"
 
@@ -190,9 +192,19 @@ class Planning:
             else:
                 continue  # skip invalid move
 
-            while direction != required:
-                actions.append("turn_left")
-                direction = dir_order[(dir_order.index(direction) + 1) % 4]
+            if direction != required:
+                cur_idx = dir_order.index(direction)
+                req_idx = dir_order.index(required)
+
+                # tính chênh lệch theo chiều kim đồng hồ
+                cw = (req_idx - cur_idx) % 4
+
+                if cw == 1:  # quay phải 1 lần
+                    actions.append("turn_right")
+                elif cw == 3:  # quay trái 1 lần
+                    actions.append("turn_left")
+                elif cw == 2:
+                    actions.append("turn_right")
 
             actions.append("move_forward")
 
@@ -207,7 +219,6 @@ class Planning:
         """
         Check if the agent is aligned with Wumpus in the current facing direction.
         """
-        print(f"Checking if can shoot Wumpus at {wumpus_pos} from {agent_pos} facing {agent_dir}")
         ax, ay = agent_pos
         wx, wy = wumpus_pos
 
