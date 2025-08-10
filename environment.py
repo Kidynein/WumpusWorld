@@ -1,7 +1,6 @@
 import random
 from enum import Enum
 from typing import Dict, List, Tuple
-
 class WumpusWorld:
     def __init__(self, world_size = 8, k = 2, p = 0.2, seed=36):
         self.grid_size = world_size
@@ -10,6 +9,7 @@ class WumpusWorld:
         self.has_gold = False
         self.has_arrow = True
         self.game_over_state = None
+        self.wumpus_alive = True
         self.seed = seed
         self.score = 0
         self.K = k
@@ -67,7 +67,6 @@ class WumpusWorld:
                     percepts["stench"] = True
                 if cell["pit"]:
                     percepts["breeze"] = True
-
         # Check for glitter (gold in current cell)
         if self.world[x][y]["gold"]:
             percepts["glitter"] = True
@@ -99,9 +98,10 @@ class WumpusWorld:
         if 0 <= new_x < self.grid_size and 0 <= new_y < self.grid_size:
             self.agent_pos = (new_x, new_y)
             self.percepts = self._update_percepts()
+            self.score -= 1
             return True
 
-        # Bump if against wall
+        # Bump nếu chạm wall
         self.percepts["bump"] = True
         return False
 
@@ -109,13 +109,13 @@ class WumpusWorld:
         directions = ["up", "left", "down", "right"]
         idx = directions.index(self.agent_dir)
         self.agent_dir = directions[(idx + 1) % 4]
-        # Percepts do not change when only turning.
+        self.score -= 1
 
     def turn_right(self):
         directions = ["up", "right", "down", "left"]
         idx = directions.index(self.agent_dir)
         self.agent_dir = directions[(idx + 1) % 4]
-        # Percepts do not change when only turning.
+        self.score -= 1
 
     def shoot_arrow(self):
         if not self.has_arrow:
@@ -151,7 +151,10 @@ class WumpusWorld:
                     break
 
         if hit:
+            self.wumpus_alive = False
+            self.percepts = self._update_percepts()
             self.percepts["scream"] = True
+            self.score -= 10
             return True
 
         return False
@@ -162,35 +165,38 @@ class WumpusWorld:
             self.has_gold = True
             self.world[x][y]["gold"] = False
             self.percepts["glitter"] = False
+            self.score += 10
             return True
         return False
 
     def climb_out(self):
-        # Climbing out is only allowed at the starting position (0, 0)
         if self.agent_pos != (0, 0):
             return False
         if not self.has_gold:
             self.game_over_state = "lose"
-            return False
-        # If the agent is at (0, 0) and has gold, the game is won
+            self.score -= 1000
+            return True
         self.game_over_state = "win"
         self.score += 1000
         return True
 
-    def is_game_over(self):
+    def is_game_over(self, agent):
         if self.game_over_state is not None:
             return self.game_over_state
 
         x, y = self.agent_pos
         cell = self.world[x][y]
 
-        # Check for death by pit or alive Wumpus
+        # Kiểm tra nếu agent rơi vào pit hoặc bị wumpus ăn
         if cell["pit"] or (cell["wumpus"]):
             self.game_over_state = "lose"
             return "lose"
 
-        # Check win condition: grabbed gold and returned to start
-        if self.agent_pos == (0, 0) and self.has_gold:
+        # Kiêm tra nếu agent đã lấy vàng và trở về (0, 0)
+        if self.agent_pos == (0, 0) and self.has_gold and agent.last_action == "climb":
             self.game_over_state = "win"
             return "win"
+        if self.agent_pos == (0, 0) and not self.has_gold and agent.last_action == "climb":
+            self.game_over_state = "lose"
+            return "lose"
         return "continue"
