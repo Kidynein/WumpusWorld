@@ -26,7 +26,7 @@ class LogicInference:
         self.visited_cells.add(pos)
         if pos not in self.safe_cells:
             self.safe_cells.add(pos)
-            self._add_knowledge(f"Visited and confirmed Safe: {pos}")
+            self._add_knowledge(f"{pos} is Safe")
         self.warning_cells.discard(pos)
 
         neighbors = world.get_neighbors(pos)
@@ -136,3 +136,4 @@ class LogicInference:
             if len(possible) == 1:
                 inferred.add(possible[0])
         return {"wumpus": inferred}
+
