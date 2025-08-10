@@ -1,6 +1,6 @@
 import pygame
 from enum import Enum
-
+from movingwumpus import MovingWumpusModule
 class GameMode(Enum):
     AUTO = "Auto"
     STEP = "Step"
@@ -9,7 +9,8 @@ class GUI:
         pygame.init()
         self.world = world
         self.agent = agent
-
+        self.agent_type = "Hybrid"
+        self.moving_wumpus = MovingWumpusModule(world)  # Initialize the moving Wumpus module
         # Grid and UI sizing
         self.GRID_SIZE = world.grid_size
         self.MARGIN = 50
@@ -63,6 +64,7 @@ class GUI:
         self.show_dangers = False
         self.show_gold = False
         self.show_config_popup = False
+        self.ADVANCE_MODE = False
     def _update(self, new_world, new_agent):
         """Update the GUI with a new world state."""
         self.world = new_world
@@ -93,12 +95,13 @@ class GUI:
             ("Show All", "toggle_all"),
             ("Reset Game", "reset_game"),
             ("New Seed", "new_seed"),
-            ("Config", "config"),
+            ("Advance", "advance"),
+            (f"Agent: {self.agent_type}", "switch_agent"),
         ]
         buttons = []
         for idx, (label, action) in enumerate(configs):
-            x = self.MARGIN + (idx % 3) * 160
-            y = base_y + (idx // 3) * (self.BUTTON_HEIGHT + 5)
+            x = self.MARGIN + (idx % 4) * 160
+            y = base_y + (idx // 4) * (self.BUTTON_HEIGHT + 5)
             rect = pygame.Rect(x, y, 150, self.BUTTON_HEIGHT)
             buttons.append({"rect": rect, "label": label, "action": action})
         return buttons
@@ -158,7 +161,7 @@ class GUI:
                     if cell_pos in self.agent.breeze_cells:
                         self.screen.blit(self.breeze_img, (x, y))
                     if cell_pos in self.agent.stench_cells:
-                        self.screen.blit(self.stench_img, (x, y + 50))
+                        self.screen.blit(self.stench_img, (x, y + self.CELL_SIZE/2))
 
     def _draw_agent_direction(self, x: int, y: int):
         """Draw a small triangle indicating agent’s facing direction."""
@@ -209,7 +212,7 @@ class GUI:
         y += 30
 
         # Game status
-        status = self.world.is_game_over()
+        status = self.world.is_game_over(self.agent)
         color = (
             self.GREEN
             if status == "win"
@@ -228,9 +231,14 @@ class GUI:
         arrow_text = self.small_font.render(
             f"Has Arrow: {self.world.has_arrow}", True, self.WHITE
         )
+        score_text = self.small_font.render(
+            f"Score: {self.world.score}", True, self.WHITE
+        )
         self.screen.blit(gold_text, (px + 10, y))
         y += 20
         self.screen.blit(arrow_text, (px + 10, y))
+        y += 20
+        self.screen.blit(score_text, (px + 10, y))
         y += 25
 
         # Cell counts
@@ -248,13 +256,17 @@ class GUI:
                 p_text = self.small_font.render(f"• {p}", True, self.WHITE)
                 self.screen.blit(p_text, (px + 15, y))
                 y += 18
-        y += 10
+        action_title = self.font.render("Action:", True, self.WHITE)
+        self.screen.blit(action_title, (px + 10, y))
+        action_text = self.font.render(f"{self.agent.last_action}", True, self.WHITE)
+        self.screen.blit(action_text, (px + 90, y))
+        y += 30
 
         # Knowledge Base (last few entries)
         kb_title = self.font.render("Knowledge Base:", True, self.WHITE)
         self.screen.blit(kb_title, (px + 10, y))
         y += 25
-        for entry in self.agent.knowledge_base[-6:]:
+        for entry in self.agent.knowledge_base[-10:]:
             if y < py + panel_h - 50:
                 txt = entry if len(entry) <= 28 else entry[:28] + "..."
                 kb_text = self.small_font.render(txt, True, self.WHITE)
@@ -277,7 +289,8 @@ class GUI:
                 color = self.GREEN
             elif action == "step_mode" and self.mode == GameMode.STEP:
                 color = self.GREEN
-
+            elif action == "advance" and self.ADVANCE_MODE:
+                color = self.GREEN
             pygame.draw.rect(self.screen, color, rect)
             pygame.draw.rect(self.screen, self.WHITE, rect, 2)
             label = self.small_font.render(btn["label"], True, self.WHITE)
@@ -304,9 +317,13 @@ class GUI:
                     self.show_gold = not self.show_gold
                     self.show_dangers = not self.show_dangers
                     return None
-                elif action == "config":
-                    self.show_config_popup = not self.show_config_popup
+                elif action == "advance":
+                    self.ADVANCE_MODE = not self.ADVANCE_MODE
                     return None
+                elif action == "switch_agent":
+                    self.agent_type = "Random" if self.agent_type == "Hybrid" else "Hybrid"
+                    self.buttons = self._create_buttons()  # Cập nhật lại tên nút
+                    return "switch_agent"
                 return action
         return None
 
