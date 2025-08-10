@@ -16,7 +16,6 @@ class LogicInference:
         self.inference_rules = [
             self.rule_infer_pit_from_breeze,
             self.rule_infer_wumpus_from_stench,
-            #self.rule_infer_safe_from_confirmed_pit
         ]
 
     def _add_knowledge(self, message: str):
@@ -47,26 +46,28 @@ class LogicInference:
                     # Loại bỏ stench nếu có
                     if nbr in self.stench_cells:
                         self.stench_cells.discard(nbr)
-                        self._add_knowledge(f"Stench at {nbr} removed after Wumpus killed")
-            percepts["scream"] = False  # Reset scream after processing
-                
+                        self._add_knowledge(f"Stench at {nbr} removed")
 
-                    
         if has_breeze:
             if pos not in self.breeze_cells:
                 self.breeze_cells.add(pos)
-                self._add_knowledge(f"Percept: Breeze at {pos}")
+                self._add_knowledge(f"Breeze at {pos}")
         if has_stench:
-            if pos not in self.stench_cells:
+            if pos not in self.stench_cells and not has_scream:
                 self.stench_cells.add(pos)
-                self._add_knowledge(f"Percept: Stench at {pos}")
+                print(f"Stench at {pos}")
+                self._add_knowledge(f"Stench at {pos}")
 
+        if not has_breeze and pos in self.breeze_cells:
+            self.breeze_cells.discard(pos)
+        if not has_stench and pos in self.stench_cells:
+            self.stench_cells.discard(pos)
         if not has_breeze and not has_stench:
             for nbr in neighbors:
                 if nbr not in self.safe_cells:
                     self.safe_cells.add(nbr)
                     self.warning_cells.discard(nbr)
-                    self._add_knowledge(f"{pos} -> {nbr} is Safe")
+                    self._add_knowledge(f"{nbr} is Safe")
         else:
             for nbr in neighbors:
                 if (
@@ -75,7 +76,7 @@ class LogicInference:
                     and nbr not in self.visited_cells
                 ):
                     self.warning_cells.add(nbr)
-                    self._add_knowledge(f"{pos} -> {nbr} is warning")
+                    self._add_knowledge(f"{nbr} is warning")
 
         self.forward_chaining(world)
 
@@ -112,9 +113,7 @@ class LogicInference:
             if not change:
                 break
 
-    # ------------------------
     # RULE DEFINITIONS BELOW
-    # ------------------------
 
     def rule_infer_pit_from_breeze(self, world):
         # Logic suy luận hố (pit)
@@ -137,26 +136,3 @@ class LogicInference:
             if len(possible) == 1:
                 inferred.add(possible[0])
         return {"wumpus": inferred}
-
-    def rule_infer_safe_from_confirmed_pit(self, world):
-        # Logic suy luận ô an toàn
-            # Nếu một ô "warning" là hàng xóm của một ô "breeze",
-            # nhưng tất cả các hàng xóm khác của ô "breeze" đó đều an toàn,
-            # thì ô "warning" đó phải là hố.
-            # Ngược lại, nếu ta tìm ra 1 hố cạnh ô breeze, các ô warning còn lại sẽ an toàn.
-        inferred = set()
-        for breeze_pos in self.breeze_cells:
-            neighbors = world.get_neighbors(breeze_pos)
-            pits = [n for n in neighbors if n in self.pit_cells]
-            # Nếu đã tìm thấy hố gây ra breeze, các hàng xóm chưa an toàn còn lại là an toàn
-            if pits:
-                for n in neighbors:
-                    if n not in self.safe_cells and n not in self.pit_cells:
-                        inferred.add(n)
-        return {"safe": inferred}
-    # ------------------------
-    # DEBUGGING
-    # ------------------------
-
-    def print_knowledge_base(self):
-        print("\n".join(self.knowledge_base))
