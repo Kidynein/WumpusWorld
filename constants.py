@@ -1,1 +1,0 @@
-WORLD_SIZE = 1
