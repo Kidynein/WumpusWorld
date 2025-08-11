@@ -9,21 +9,12 @@ class Planning:
         self.current_plan: List[str] = []
 
     def plan_next_action(self, current_pos: Tuple[int, int], current_dir: str, world) -> str:
-        """
-        Decide the next action based on current perceptions and KB:
-        1. If there's glitter, grab gold.
-        2. If holding gold, plan path back to (0,0).
-        3. Otherwise, explore unvisited safe cells using A*.
-        4. If a Wumpus location is known and arrow available, try shooting or move into shooting position.
-        5. Take a risky move toward the nearest warning cell only if there are no safe moves.
-        6. If nothing else, wait.
-        """
         self.current_plan.clear()
-        # 1. Grab gold if glitter
+        # 1. Lấy vàng nếu glitter
         if world.percepts.get("glitter", False):
             return "grab"
 
-        # 2. Plan to go home if has gold
+        # 2. Kế hoạch về nhà nếu có vàng
         if world.has_gold:
             if current_pos == (0, 0):
                 return "climb"
@@ -36,7 +27,7 @@ class Planning:
             else:
                 return "wait"
 
-        # 3. Explore unvisited safe cells
+        # 3. Khám phá các ô an toàn chưa được ghé thăm
         safe_unvisited = [cell for cell in self.logic_inference.safe_cells if cell not in self.logic_inference.visited_cells]
         if safe_unvisited:
             for target in safe_unvisited:
@@ -46,7 +37,7 @@ class Planning:
                     if self.current_plan:
                         return self.current_plan.pop(0)
 
-        # 4. Try to shoot known Wumpus
+        # 4. Cố gắng bắn những con Wumpus đã biết
         if world.has_arrow and self.logic_inference.wumpus_cells:
             wumpus_pos = next(iter(self.logic_inference.wumpus_cells))
             if self._can_shoot_wumpus(current_pos, current_dir, wumpus_pos):
@@ -73,27 +64,21 @@ class Planning:
                         if self.current_plan:
                             return self.current_plan.pop(0)
         
-        # 5. Risky move to warning cell
+        # 5. Động thái mạo hiểm để cảnh báo tế bào
         if self.logic_inference.warning_cells and not safe_unvisited:
             for target in self.logic_inference.warning_cells:
-                path = self.find_risky_path(current_pos, target, world)
+                path = self.find_path(current_pos, target, world, strict_safe=False)
                 if path:
                     self.current_plan = self._path_to_actions(path, current_dir)
                     if self.current_plan:
                         return self.current_plan.pop(0)
 
-        # 6. Nothing to do
+        # 6. Không xác định được hành động, đợi
         return "wait"
 
-    def find_path(
-        self,
-        start: Tuple[int, int],
-        goal: Tuple[int, int],
-        world,
-        strict_safe: bool = False,
-    ) -> List[Tuple[int, int]] | None:
+    def find_path(self, start: Tuple[int, int], goal: Tuple[int, int], world,strict_safe: bool = False):
         """
-        A* pathfinding avoiding confirmed unsafe cells (and optionally avoiding non-safe).
+        A* thuật toán tìm đường  ngắn nhất từ start đến goal.
         """
         if start == goal:
             return [start]
@@ -134,42 +119,6 @@ class Planning:
                     f_score = tentative_g + heuristic(nbr)
                     heapq.heappush(open_set, (f_score, tentative_g, nbr))
 
-        return None
-
-    def find_risky_path(
-        self,
-        start: Tuple[int, int],
-        goal: Tuple[int, int],
-        world,
-    ) -> List[Tuple[int, int]] | None:
-        """
-        A* pathfinding that allows traveling through warning cells but still avoids confirmed unsafe cells.
-        """
-        if start == goal:
-            return [start]
-
-        def heuristic(cell: Tuple[int, int]) -> int:
-            return abs(cell[0] - goal[0]) + abs(cell[1] - goal[1])
-
-        open_set = [(heuristic(start), 0, start, [start])]
-        closed_set: Set[Tuple[int, int]] = set()
-
-        while open_set:
-            _, cost_so_far, current, path = heapq.heappop(open_set)
-            if current in closed_set:
-                continue
-            closed_set.add(current)
-
-            if current == goal:
-                return path
-
-            for nbr in world.get_neighbors(current):
-                if nbr in closed_set or nbr in self.logic_inference.unsafe_cells:
-                    continue
-                new_cost = cost_so_far + 1
-                new_path = path + [nbr]
-                priority = new_cost + heuristic(nbr)
-                heapq.heappush(open_set, (priority, new_cost, nbr, new_path))
         return None
 
     def _path_to_actions(self, path: List[Tuple[int, int]], current_dir: str) -> List[str]:
