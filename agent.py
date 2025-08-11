@@ -6,38 +6,34 @@ import random
 class HybridAgent:
     def __init__(self, world_size: int = 8):
         """
-        Initialize the HybridAgent, combining LogicInference and Planning modules.
-        
-        Args:
-            world_size (int): Size of the game world grid (default is 8).
+        Khởi tạo HybridAgent, kết hợp các module LogicInference và Planning.
+
+        Đối số:
+            world_size(int): Kích thước của lưới thế giới trò chơi (mặc định là 8).
         """
         self.logic_inference = LogicInference(world_size)
         self.planning = Planning(self.logic_inference)
-        self.world_size = world_size
         self.last_action = ""
 
     def update_knowledge(self, pos: Tuple[int, int], percepts: Dict, world) -> None:
         """
-        Update the agent's knowledge base with new percepts at the given position.
-        
+        Cập nhật kiến thức của agent dựa trên vị trí hiện tại và các cảm nhận từ thế giới.
         Args:
-            pos (Tuple[int, int]): Current position of the agent.
-            percepts (Dict): Dictionary of percepts (stench, breeze, glitter, etc.).
-            world: The game world object providing neighbor information.
+            pos (Tuple[int, int]): Vị trí hiện tại của agent.
+            percepts (Dict): Các cảm nhận từ thế giới (ví dụ: "stench", "breeze", "glitter").
+            world: thê giới trò chơi cung cấp trạng thái và cảm nhận.
         """
         self.logic_inference.update_knowledge(pos, percepts, world)
 
     def plan_next_action(self, current_pos: Tuple[int, int], current_dir: str, world) -> str:
         """
-        Plan the next action based on the current position, direction, and world state.
-        
+        Lập kế hoạch hành động tiếp theo dựa trên vị trí hiện tại, hướng đi và trạng thái của thế giới.
         Args:
-            current_pos (Tuple[int, int]): Current position of the agent.
-            current_dir (str): Current facing direction of the agent.
-            world: The game world object providing game state and percepts.
-            
-        Returns:
-            str: The next action to take ("move_forward", "turn_left", "turn_right", "grab", "shoot", or "wait").
+            current_pos (Tuple[int, int]): Vị trí hiện tại của agent.
+            current_dir (str): Hướng hiện tại của agent ("up", "down", "left", "right").
+            world: Thế giới trò chơi cung cấp trạng thái và cảm nhận.
+        Trả về:
+            str: Hành động tiếp theo của agent (ví dụ: "move_forward", "turn_left", "grab", "climb").
         """
         action = self.planning.plan_next_action(current_pos, current_dir, world)
         if action != "wait":
