@@ -61,8 +61,7 @@ class GUI:
         self.stench_img = pygame.transform.scale(pygame.image.load("assets/stench.png"), (int(self.CELL_SIZE * 0.5), int(self.CELL_SIZE * 0.5)))
 
         # NEW: Toggle for showing actual pit/Wumpus icons
-        self.show_dangers = False
-        self.show_gold = False
+        self.show_all = False
         self.show_config_popup = False
         self.ADVANCE_MODE = False
     def _update(self, new_world, new_agent):
@@ -140,7 +139,7 @@ class GUI:
                     self.screen, self.WHITE, (x, y, self.CELL_SIZE, self.CELL_SIZE), 2
                 )
 
-                if self.show_dangers:
+                if self.show_all:
                     if cell_data["pit"]:
                         self.screen.blit(self.pit_img, (x, y))
                     elif cell_data["wumpus"]:
@@ -152,7 +151,7 @@ class GUI:
                     self.screen.blit(self.agent_img, (ax, ay))
                     self._draw_agent_direction(x, y)
 
-                if cell_data["gold"] and (self.show_gold or cell_pos in self.agent.visited_cells):
+                if cell_data["gold"] and (self.show_all or cell_pos in self.agent.visited_cells):
                     gx = x + (self.CELL_SIZE - self.gold_img.get_width()) // 2
                     gy = y + (self.CELL_SIZE - self.gold_img.get_height()) // 2
                     self.screen.blit(self.gold_img, (gx, gy))
@@ -202,7 +201,7 @@ class GUI:
         panel_h = self.WINDOW_HEIGHT - 2 * self.MARGIN - 100
 
         # Panel background and border
-        pygame.draw.rect(self.screen, self.DARK_BG, (px, py, panel_w, panel_h))
+        pygame.draw.rect(self.screen, self.BLACK, (px, py, panel_w, panel_h))
         pygame.draw.rect(self.screen, self.WHITE, (px, py, panel_w, panel_h), 2)
 
         y = py + 10
@@ -285,7 +284,7 @@ class GUI:
             # Highlight mode buttons
             if action == "auto_mode" and self.mode == GameMode.AUTO:
                 color = self.GREEN
-            elif action == "toggle_all" and (self.show_gold or self.show_dangers):
+            elif action == "toggle_all" and self.show_all:
                 color = self.GREEN
             elif action == "step_mode" and self.mode == GameMode.STEP:
                 color = self.GREEN
@@ -314,8 +313,7 @@ class GUI:
                         self.mode = GameMode.STEP
                     return None
                 elif action == "toggle_all":
-                    self.show_gold = not self.show_gold
-                    self.show_dangers = not self.show_dangers
+                    self.show_all = not self.show_all
                     return None
                 elif action == "advance":
                     self.ADVANCE_MODE = not self.ADVANCE_MODE
