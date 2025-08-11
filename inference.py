@@ -113,7 +113,7 @@ class LogicInference:
             if not change:
                 break
 
-    # RULE DEFINITIONS BELOW
+    # RULE
 
     def rule_infer_pit_from_breeze(self, world):
         # Logic suy luận hố (pit)
@@ -136,4 +136,3 @@ class LogicInference:
             if len(possible) == 1:
                 inferred.add(possible[0])
         return {"wumpus": inferred}
-
