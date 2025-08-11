@@ -6,9 +6,8 @@ from agent import HybridAgent, RandomAgent
 from gui import GUI, GameMode
 from enum import Enum
 from movingwumpus import MovingWumpusModule
-world_size = 8
-k = 2
-pit_prob = 0.2
+
+
 os.environ['SDL_VIDEO_CENTERED'] = '1'
 def main():
     pygame.init()
@@ -26,7 +25,7 @@ def main():
     auto_move_delay = 100  # milliseconds
     agent_action_count = 0
     moving_module = MovingWumpusModule(world)
-    print(f"Game initialized with seed: {seed}")
+    print(f"Seed: {seed}")
     print("Controls: Click buttons or use keyboard - SPACE (step)")
     
     running = True
@@ -103,10 +102,6 @@ def main():
         state = world.is_game_over(agent)
         if state != "continue" and not game_over:
             game_over = True
-            if state == "win":
-                print("🎉 VICTORY! Agent collected gold and returned to start!")
-            else:
-                print("💀 GAME OVER! Agent fell into a pit or was eaten by the Wumpus!")
 
         ui.render()
 
