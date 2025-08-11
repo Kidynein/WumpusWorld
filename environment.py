@@ -22,7 +22,7 @@ class WumpusWorld:
         world = [[{"pit": False, "wumpus": False, "gold": False} for _ in range(self.grid_size)]
                 for _ in range(self.grid_size)]
 
-        # Place K Wumpus (not at (0,0), no duplicates)
+        # Đặt k Wumpus (không ở (0,0))
         placed_wumpus = 0
         while placed_wumpus < self.K:
             wx = random.randint(0, self.grid_size - 1)
@@ -31,7 +31,7 @@ class WumpusWorld:
                 world[wx][wy]["wumpus"] = True
                 placed_wumpus += 1
 
-        # Place Gold (not with pit or wumpus; may be at (0,0))
+        # Đặt gold (không ở (0,0), không ở ô có Wumpus hoặc pit)
         while True:
             gx = random.randint(0, self.grid_size - 1)
             gy = random.randint(0, self.grid_size - 1)
@@ -39,7 +39,7 @@ class WumpusWorld:
                 world[gx][gy]["gold"] = True
                 break
 
-        # Place pits with probability p (not at (0,0), not where wumpus or gold is)
+        # Đặt pit với xác suất p (không ở (0,0) và không ở ô có Wumpus hoặc gold)
         for i in range(self.grid_size):
             for j in range(self.grid_size):
                 if (i, j) != (0, 0) and not world[i][j]["wumpus"] and not world[i][j]["gold"]:
@@ -58,7 +58,7 @@ class WumpusWorld:
             "scream": False
         }
 
-        # Check for stench (adjacent Wumpus) and breeze (adjacent pit)
+        # Kiểm tra các ô lân cận để cập nhật percepts
         for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             nx, ny = x + dx, y + dy
             if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
@@ -67,7 +67,7 @@ class WumpusWorld:
                     percepts["stench"] = True
                 if cell["pit"]:
                     percepts["breeze"] = True
-        # Check for glitter (gold in current cell)
+        # Kiểm tra nếu có vàng trong ô hiện tại
         if self.world[x][y]["gold"]:
             percepts["glitter"] = True
 
@@ -129,7 +129,7 @@ class WumpusWorld:
             for i in range(x - 1, self.grid_size):
                 if self.world[i][y]["wumpus"]:
                     hit = True
-                    self.world[i][y]["wumpus"] = False  # Wumpus is killed
+                    self.world[i][y]["wumpus"] = False  # Wumpus đã bị bắn
                     break
         elif self.agent_dir == "down":
             for i in range(x + 1, -1, -1):
